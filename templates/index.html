@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Analytics — Live Dashboard</title>
+    <meta name="description" content="Real-time sales analytics dashboard with KPIs, charts, and AI-generated insights">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+    <!-- ═══════════════ NAV ═══════════════════════════════════ -->
+    <nav class="nav">
+        <div class="nav-brand">
+            <span class="nav-dot"></span>
+            Sales Analytics
+        </div>
+        <span class="nav-count" id="nav-count"><span>—</span> orders</span>
+        <button class="btn btn-outline btn-sm" onclick="refreshAll()">⟳ Refresh</button>
+        <button class="btn btn-outline btn-sm" onclick="openModal()">📋 View / Add Orders</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal(); setTimeout(()=>switchTab('tab-new'),100)">➕ Add
+            Order</button>
+    </nav>
+
+    <!-- ═══════════════ MAIN PAGE ═════════════════════════════ -->
+    <main class="page">
+
+        <div class="page-header">
+            <h1>Sales Performance Dashboard</h1>
+            <p>Live data · Auto-refreshes every 30 seconds · All KPIs computed by SQL</p>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card" style="--kc:#58a6ff">
+                <div class="kpi-label">Total Revenue</div>
+                <div class="kpi-value" id="kpi-revenue">—</div>
+                <div class="kpi-sub" id="kpi-yoy-sub" style="color:var(--muted)">Loading…</div>
+            </div>
+            <div class="kpi-card" style="--kc:#3fb950">
+                <div class="kpi-label">Total Profit</div>
+                <div class="kpi-value" id="kpi-profit">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">Net after costs</div>
+            </div>
+            <div class="kpi-card" style="--kc:#bc8cff">
+                <div class="kpi-label">Profit Margin %</div>
+                <div class="kpi-value" id="kpi-margin">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">Blended all categories</div>
+            </div>
+            <div class="kpi-card" style="--kc:#d29922">
+                <div class="kpi-label">Avg Order Value</div>
+                <div class="kpi-value" id="kpi-aov">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">Per transaction</div>
+            </div>
+            <div class="kpi-card" style="--kc:#39d353">
+                <div class="kpi-label">Total Orders</div>
+                <div class="kpi-value" id="kpi-orders">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">Distinct order IDs</div>
+            </div>
+            <div class="kpi-card" style="--kc:#f85149">
+                <div class="kpi-label">Unique Customers</div>
+                <div class="kpi-value" id="kpi-customers">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">Buyer accounts</div>
+            </div>
+            <div class="kpi-card" style="--kc:#58a6ff">
+                <div class="kpi-label">Repeat Rate</div>
+                <div class="kpi-value" id="kpi-repeat">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">Customers with 2+ orders</div>
+            </div>
+            <div class="kpi-card" style="--kc:#39d353">
+                <div class="kpi-label">Top Region</div>
+                <div class="kpi-value" style="font-size:18px" id="kpi-region">—</div>
+                <div class="kpi-sub" style="color:var(--muted)">By revenue</div>
+            </div>
+        </div>
+
+        <!-- Auto-Generated Insights -->
+        <div class="insights-panel">
+            <div class="insights-header">
+                <h3>🤖 Auto-Generated Insights</h3>
+                <button class="btn btn-outline btn-sm" onclick="fetchInsights()">Regenerate</button>
+            </div>
+            <div class="insights-list" id="insights-list">
+                <div class="insight-item" style="color:var(--muted)">Loading insights…</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid-2">
+            <div class="card span2">
+                <div class="card-title">Monthly Revenue &amp; Profit Trend</div>
+                <div class="card-sub">Comparing revenue vs profit across all months</div>
+                <div class="chart-wrap" style="height:260px"><canvas id="chartMonthly"></canvas></div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Top 10 Products — Revenue vs Profit</div>
+                <div class="card-sub">Ranked by total revenue</div>
+                <div class="chart-wrap" style="height:270px"><canvas id="chartProducts"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Revenue by Region</div>
+                <div class="card-sub">Doughnut — share of total</div>
+                <div class="chart-wrap" style="height:270px"><canvas id="chartRegions"></canvas></div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Revenue by Category</div>
+                <div class="card-sub">Performance across all 5 categories</div>
+                <div class="chart-wrap" style="height:220px"><canvas id="chartCats"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Recent Orders</div>
+                <div class="card-sub">Latest 50 — click ✕ to delete</div>
+                <div class="table-wrap" style="max-height:220px;overflow-y:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Region</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Revenue</th>
+                                <th>Profit</th>
+                                <th>Disc%</th>
+                                <th>Category</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-tbody">
+                            <tr>
+                                <td colspan="11" style="text-align:center;color:var(--muted);padding:20px">Loading…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ═══════════════ MODAL ══════════════════════════════════ -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+
+            <div class="modal-header">
+                <h2>📋 Orders</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="tab-prev" onclick="switchTab('tab-prev'); loadPrevOrders()">
+                    📂 Previous Orders
+                </button>
+                <button class="tab-btn" data-tab="tab-new" onclick="switchTab('tab-new')">
+                    ➕ Add New Order
+                </button>
+                <button class="tab-btn" data-tab="tab-import" onclick="switchTab('tab-import')">
+                    📄 Import CSV
+                </button>
+            </div>
+
+            <!-- ── TAB 1: Previous Orders ── -->
+            <div class="tab-content active" id="tab-prev">
+                <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+                    Showing last 20 orders · Switch to <strong style="color:var(--text)">Add New Order</strong> to enter
+                    fresh data.
+                </p>
+                <div class="prev-orders" id="prev-orders-list">
+                    <div style="color:var(--muted);font-size:13px">Loading…</div>
+                </div>
+                <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px">
+                    <button class="btn btn-outline btn-sm" onclick="loadPrevOrders()">⟳ Refresh</button>
+                    <button class="btn btn-primary btn-sm" onclick="switchTab('tab-new')">➕ Add New Order →</button>
+                </div>
+            </div>
+
+            <!-- ── TAB 2: New Order Form ── -->
+            <div class="tab-content" id="tab-new">
+                <form id="order-form" onsubmit="submitOrder(event)">
+
+                    <div class="form-grid">
+                        <!-- Row 1 -->
+                        <div class="form-group">
+                            <label for="f-date">Order Date</label>
+                            <input type="date" id="f-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="f-customer">Customer Name</label>
+                            <input type="text" id="f-customer" placeholder="e.g. Revanth Kumar" required>
+                        </div>
+
+                        <!-- Row 2 -->
+                        <div class="form-group">
+                            <label for="f-region">Region</label>
+                            <select id="f-region" required>
+                                <option value="">— Select Region —</option>
+                                <option>North</option>
+                                <option>South</option>
+                                <option>East</option>
+                                <option>West</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="f-category">Category</label>
+                            <select id="f-category" required>
+                                <option value="">— Select Category —</option>
+                                <option>Technology</option>
+                                <option>Furniture</option>
+                                <option>Office Supplies</option>
+                                <option>Clothing</option>
+                                <option>Food &amp; Beverage</option>
+                            </select>
+                        </div>
+
+                        <!-- Row 3 -->
+                        <div class="form-group full">
+                            <label for="f-product">Product Name</label>
+                            <input type="text" id="f-product" placeholder="e.g. Laptop Pro 15" required>
+                        </div>
+
+                        <!-- Row 4 -->
+                        <div class="form-group">
+                            <label for="f-qty">Quantity</label>
+                            <input type="number" id="f-qty" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="f-disc">Discount %</label>
+                            <input type="number" id="f-disc" min="0" max="80" step="0.1" value="0" placeholder="0">
+                        </div>
+
+                        <!-- Row 5 -->
+                        <div class="form-group">
+                            <label for="f-price">Unit Price ($)</label>
+                            <input type="number" id="f-price" min="0.01" step="0.01" placeholder="e.g. 999.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="f-cost">Cost Price ($)</label>
+                            <input type="number" id="f-cost" min="0.01" step="0.01" placeholder="e.g. 650.00" required>
+                        </div>
+                    </div>
+
+                    <!-- Live preview -->
+                    <div style="margin-top:14px">
+                        <label
+                            style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Live
+                            Preview (auto-computed)</label>
+                        <div class="preview-box">
+                            <div class="preview-item">
+                                <span>Revenue</span>
+                                <strong id="prev-rev">—</strong>
+                            </div>
+                            <div class="preview-item" id="prev-pft-item">
+                                <span>Profit</span>
+                                <strong id="prev-pft">—</strong>
+                            </div>
+                            <div class="preview-item" style="font-size:11px;color:var(--muted);align-self:center">
+                                Revenue = Qty × Unit Price × (1 − Disc%)<br>
+                                Profit = Revenue − Qty × Cost Price<br>
+                                <em>Auto-cleaned &amp; validated on save</em>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warnings box (hidden until needed) -->
+                    <div class="warning-list" id="form-warnings" style="display:none"></div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                        <button type="submit" class="btn btn-green" id="submit-btn">Save Order</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ── TAB 3: CSV Import ── -->
+            <div class="tab-content" id="tab-import">
+                <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+                    Upload any CSV. The system will **auto-clean** the data, map columns automatically (e.g., "Item" →
+                    "Product"), and validate values.
+                </p>
+
+                <div style="margin-bottom:16px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="clear-data-chk"
+                        style="accent-color: var(--blue); width: 16px; height: 16px;">
+                    <label for="clear-data-chk" style="font-size: 13px; color: var(--text); cursor: pointer;">
+                        ✨ Clear existing data before import (Replace all)
+                    </label>
+                </div>
+
+                <label class="file-drop" for="csv-input" id="file-drop-label">
+                    📄 Drop CSV here or click to browse
+                    <input type="file" id="csv-input" accept=".csv" onclick="this.value=null">
+                </label>
+
+                <div
+                    style="margin-top:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+                    <p style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">💡 Quick Tip</p>
+                    <p style="font-size:12px;color:var(--muted)">
+                        You can export <code style="font-size:11px">data/sales.csv</code> from the original project and
+                        import it here to instantly load 52,000 rows.
+                        Or build your own CSV in Excel and drop it in.
+                    </p>
+                </div>
+            </div>
+
+        </div><!-- /modal -->
+    </div><!-- /modal-overlay -->
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
