@@ -30,6 +30,10 @@ def init():
         Discount     REAL    NOT NULL DEFAULT 0,
         Sales_Amount REAL    NOT NULL,
         Profit       REAL    NOT NULL,
+        Payment_Method TEXT,
+        Age          INTEGER,
+        Gender       TEXT,
+        Annual_Income REAL,
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -38,10 +42,25 @@ def init():
     CREATE INDEX IF NOT EXISTS idx_product  ON sales(Product);
     CREATE INDEX IF NOT EXISTS idx_customer ON sales(Customer_ID);
     CREATE INDEX IF NOT EXISTS idx_category ON sales(Category);
+    CREATE INDEX IF NOT EXISTS idx_pay      ON sales(Payment_Method);
+    CREATE INDEX IF NOT EXISTS idx_age      ON sales(Age);
     """)
+    # Migration: Add missing columns if they don't exist
+    existing_cols = [row[1] for row in c.execute("PRAGMA table_info(sales)").fetchall()]
+    migrations = [
+        ("Payment_Method", "TEXT"),
+        ("Age",            "INTEGER"),
+        ("Gender",         "TEXT"),
+        ("Annual_Income",  "REAL")
+    ]
+    for col_name, col_type in migrations:
+        if col_name not in existing_cols:
+            print(f"Adding missing column: {col_name}")
+            c.execute(f"ALTER TABLE sales ADD COLUMN {col_name} {col_type}")
+
     conn.commit()
     conn.close()
-    print(f"✅ Database initialised: {DB_PATH}")
+    print(f"✅ Database initialised and migrated: {DB_PATH}")
 
 if __name__ == "__main__":
     init()

@@ -71,11 +71,12 @@ async function fetchInsights() {
 function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
 async function fetchCharts() {
-    const [monthly, products, regions, cats] = await Promise.all([
+    const [monthly, products, regions, payments, ages] = await Promise.all([
         fetch('/api/chart/monthly').then(r => r.json()),
         fetch('/api/chart/products').then(r => r.json()),
         fetch('/api/chart/regions').then(r => r.json()),
-        fetch('/api/chart/categories').then(r => r.json()),
+        fetch('/api/chart/payment').then(r => r.json()),
+        fetch('/api/chart/age').then(r => r.json()),
     ]);
 
     // Monthly trend
@@ -118,7 +119,7 @@ async function fetchCharts() {
         }
     });
 
-    // Regions doughnut
+    // Global Market Share (Regions/Countries)
     destroyChart('chartRegions');
     charts['chartRegions'] = new Chart($('chartRegions'), {
         type: 'doughnut',
@@ -127,30 +128,54 @@ async function fetchCharts() {
             datasets: [{ data: regions.map(r => r.revenue), backgroundColor: PAL, borderColor: C.surf, borderWidth: 2, hoverOffset: 6 }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false, cutout: '60%',
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
             plugins: {
-                legend: { position: 'right' },
+                legend: { position: 'right', labels: { color: C.muted } },
                 tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmt(ctx.raw)} | Margin: ${regions[ctx.dataIndex]?.margin}%` } }
             }
         }
     });
 
-    // Categories bar
+    // Payment Methods (Horizontal Bar)
     destroyChart('chartCats');
     charts['chartCats'] = new Chart($('chartCats'), {
         type: 'bar',
         data: {
-            labels: cats.map(c => c.Category),
+            labels: payments.map(p => p.Payment_Method),
             datasets: [
-                { label: 'Revenue', data: cats.map(c => c.revenue), backgroundColor: cats.map((_, i) => PAL[i]), borderRadius: 6 },
+                { label: 'Revenue', data: payments.map(p => p.rev), backgroundColor: C.blue, borderRadius: 6 },
             ]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: GRID_OPT, ticks: { callback: v => fmt(v) } }, y: { grid: { display: false } } }
+        }
+    });
+
+    // Age Distribution
+    destroyChart('chartAge');
+    charts['chartAge'] = new Chart($('chartAge'), {
+        type: 'bar',
+        data: {
+            labels: ages.map(a => a.age_bucket),
+            datasets: [{ label: 'Customer Count', data: ages.map(a => a.count), backgroundColor: C.purple, borderRadius: 4 }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { x: { grid: { display: false } }, y: { grid: GRID_OPT, ticks: { callback: v => fmt(v) } } }
+            scales: { x: { grid: { display: false } }, y: { grid: GRID_OPT } }
         }
     });
+
+    // Demographic Insights text
+    const topAge = ages.reduce((p, c) => (p.count > c.count ? p : c), ages[0]);
+    const totalRev = ages.reduce((s, a) => s + a.rev, 0);
+    $('demographic-insights').innerHTML = `
+        <div style="margin-bottom:8px">🔥 Top customer segment is age <strong>${topAge.age_bucket}</strong>.</div>
+        <div>💰 This segment has generated <strong>${fmt(topAge.rev)}</strong> revenue.</div>
+        <div style="margin-top:8px;font-size:11px">Dataset shows a well-distributed customer base across ${ages.length} age buckets.</div>
+    `;
 }
 
 // ── Orders table ──────────────────────────────────────────
@@ -173,6 +198,8 @@ async function fetchOrders() {
           <td>${fmt(o.Sales_Amount)}</td>
           <td style="color:${col};font-weight:600">${fmt(o.Profit)}</td>
           <td>${((o.Discount ?? 0) * 100).toFixed(0)}%</td>
+          <td>${o.Gender || '—'}</td>
+          <td>${fmt(o.Annual_Income)}</td>
           <td>${o.Category}</td>
           <td><button class="btn btn-danger" onclick="deleteOrder(${o.id})">✕</button></td>
         </tr>`;
@@ -320,7 +347,13 @@ $('csv-input')?.addEventListener('change', async (e) => {
 
         if (!res.ok) { toast('❌ Import failed: ' + (data.error ?? ''), 'error'); return; }
 
-        toast(`✅ Imported ${data.inserted} rows (${data.skipped} skipped)`);
+        if (data.skipped > 0) {
+            toast(`⚠️ Imported ${data.inserted} rows. ${data.skipped} rows were skipped due to errors. Check logs for details.`, 'warning');
+            console.error('Import Warnings:', data.warnings);
+        } else {
+            toast(`✅ Successfully imported ${data.inserted} rows.`);
+        }
+
         closeModal();
         await refreshAll(data.insights);
 

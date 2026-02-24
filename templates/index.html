@@ -97,6 +97,22 @@
             </div>
         </div>
 
+        <div class="grid-2" style="margin-top: 20px;">
+            <div class="card">
+                <div class="card-title">Customer Age Distribution</div>
+                <div class="card-sub">Grouped by age buckets</div>
+                <div class="chart-wrap" style="height:220px"><canvas id="chartAge"></canvas></div>
+            </div>
+            <!-- Empty card or something else for balance if needed, or just let it span -->
+            <div class="card">
+                <div class="card-title">Data Insights</div>
+                <div class="card-sub">Derived from demographic analysis</div>
+                <div id="demographic-insights" style="font-size: 13px; color: var(--muted); padding: 10px;">
+                    Loading demographic data...
+                </div>
+            </div>
+        </div>
+
         <div class="grid-2">
             <div class="card">
                 <div class="card-title">Top 10 Products — Revenue vs Profit</div>
@@ -104,16 +120,16 @@
                 <div class="chart-wrap" style="height:270px"><canvas id="chartProducts"></canvas></div>
             </div>
             <div class="card">
-                <div class="card-title">Revenue by Region</div>
-                <div class="card-sub">Doughnut — share of total</div>
+                <div class="card-title">Market Share by Country</div>
+                <div class="card-sub">Doughnut — revenue distribution</div>
                 <div class="chart-wrap" style="height:270px"><canvas id="chartRegions"></canvas></div>
             </div>
         </div>
 
         <div class="grid-2">
             <div class="card">
-                <div class="card-title">Revenue by Category</div>
-                <div class="card-sub">Performance across all 5 categories</div>
+                <div class="card-title">Payment Method Analysis</div>
+                <div class="card-sub">Revenue by transaction type</div>
                 <div class="chart-wrap" style="height:220px"><canvas id="chartCats"></canvas></div>
             </div>
             <div class="card">
@@ -132,7 +148,9 @@
                                 <th>Revenue</th>
                                 <th>Profit</th>
                                 <th>Disc%</th>
-                                <th>Category</th>
+                                <th>Gender</th>
+                                <th>Income</th>
+                                <th style="text-align:right">Action</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -290,10 +308,11 @@
                 </p>
 
                 <div style="margin-bottom:16px; display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="clear-data-chk"
+                    <input type="checkbox" id="clear-data-chk" checked
                         style="accent-color: var(--blue); width: 16px; height: 16px;">
-                    <label for="clear-data-chk" style="font-size: 13px; color: var(--text); cursor: pointer;">
-                        ✨ Clear existing data before import (Replace all)
+                    <label for="clear-data-chk"
+                        style="font-size: 13px; color: var(--text); cursor: pointer; font-weight: 500;">
+                        ✨ Replace all existing data with this CSV
                     </label>
                 </div>
 

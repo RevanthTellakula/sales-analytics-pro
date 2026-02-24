@@ -4,6 +4,9 @@ A full-stack, interactive Sales Analytics Web Application designed for data anal
 
 ![Dashboard Preview](https://github.com/RevanthTellakula/sales-analytics-pro/blob/main/screenshot.png?raw=true)
 
+> [!TIP]
+> **View the [Full Business Case Study](./docs/case_study.md)** for a deep dive into revenue trends, SQL analysis, and strategic recommendations.
+
 ## 🚀 Key Features
 
 - **Live Dashboard**: Real-time KPI tracking (Revenue, Profit, Margin, AOV) with dynamic Chart.js visualizations.
